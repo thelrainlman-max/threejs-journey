@@ -17,10 +17,10 @@ const canvas: HTMLElement = document.querySelector("canvas.webgl")!;
 const scene = new THREE.Scene();
 
 const params = {
-	count: 700000, // count of particles/stars
-	size: 0.01, // size of a particle/star
-	radius: 6, // radius of the galaxy
-	branches: 3, // branches of the galaxy
+	count: 700000,
+	size: 0.01,
+	radius: 6,
+	branches: 3,
 	spin: 2,
 	randomness: 0.2,
 	randomnessPower: 3,
@@ -28,18 +28,18 @@ const params = {
 	outColor: "#1b3984",
 };
 
-let geometry: THREE.BufferGeometry | null;
-let material: THREE.PointsMaterial | null;
-let points: THREE.Points | null;
+let geometry: THREE.BufferGeometry | null = null;
+let material: THREE.PointsMaterial | null = null;
+let points: THREE.Points | null = null;
 
 const generateGalaxy = () => {
 	/**
 	 * Destroy old galaxy
 	 */
 	if (points !== null) {
-		geometry?.dispose(); // disposes the geometry from the memory
-		material?.dispose(); // Disposes the material from the memory
-		scene.remove(points); // removes the points from the scene
+		geometry?.dispose();
+		material?.dispose();
+		scene.remove(points);
 	}
 
 	/**
@@ -53,31 +53,27 @@ const generateGalaxy = () => {
 	const outColor = new THREE.Color(params.outColor);
 
 	for (let i = 0; i < params.count; i++) {
-		// i * 3 because we have 3 coordinates per star
 		const i3 = i * 3;
 
 		/**
 		 * Position
 		 */
 		const radius = Math.random() * params.radius;
-		/**
-		 * greater the radius, more the star will be away from straight line along the x axis
-		 */
 		const spinAngle = radius * params.spin;
-		/**
-		 * it divides the circle into equal parts, hence the branche angle
-		 */
 		const branchAngle = ((i % params.branches) / params.branches) * Math.PI * 2;
 
 		const randomX =
 			Math.pow(Math.random(), params.randomnessPower) *
-			(Math.random() < 0.5 ? 1 : -1);
+			(Math.random() < 0.5 ? 1 : -1) *
+			params.randomness;
 		const randomY =
 			Math.pow(Math.random(), params.randomnessPower) *
-			(Math.random() < 0.5 ? 1 : -1);
+			(Math.random() < 0.5 ? 1 : -1) *
+			params.randomness;
 		const randomZ =
 			Math.pow(Math.random(), params.randomnessPower) *
-			(Math.random() < 0.5 ? 1 : -1);
+			(Math.random() < 0.5 ? 1 : -1) *
+			params.randomness;
 
 		positions[i3 + 0] = Math.cos(branchAngle + spinAngle) * radius + randomX;
 		positions[i3 + 1] = randomY;
@@ -102,7 +98,7 @@ const generateGalaxy = () => {
 	 */
 	material = new THREE.PointsMaterial({
 		size: params.size,
-		sizeAttenuation: true, // make the stars smaller as they get further away or bigger as they get closer
+		sizeAttenuation: true,
 		depthWrite: false,
 		blending: THREE.AdditiveBlending,
 		vertexColors: true,
@@ -118,7 +114,7 @@ const generateGalaxy = () => {
 generateGalaxy();
 
 /**
- * in order to make this work, we need to destroy the previously rendered galaxy if any
+ * GUI Controls
  */
 gui.add(params, "count", 100, 1000000, 100).onFinishChange(generateGalaxy);
 gui.add(params, "size", 0.001, 0.1, 0.001).onFinishChange(generateGalaxy);
@@ -139,15 +135,12 @@ const sizes = {
 };
 
 window.addEventListener("resize", () => {
-	// Update sizes
 	sizes.width = window.innerWidth;
 	sizes.height = window.innerHeight;
 
-	// Update camera
 	camera.aspect = sizes.width / sizes.height;
 	camera.updateProjectionMatrix();
 
-	// Update renderer
 	renderer.setSize(sizes.width, sizes.height);
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
@@ -155,7 +148,6 @@ window.addEventListener("resize", () => {
 /**
  * Camera
  */
-// Base camera
 const camera = new THREE.PerspectiveCamera(
 	75,
 	sizes.width / sizes.height,
@@ -181,12 +173,53 @@ renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 /**
+ * Background Space (Фоновый космос из 5000 звёзд)
+ */
+const bgStarsCount = 5000;
+const bgPositions = new Float32Array(bgStarsCount * 3);
+const bgColors = new Float32Array(bgStarsCount * 3);
+
+for (let i = 0; i < bgStarsCount; i++) {
+	const i3 = i * 3;
+	bgPositions[i3] = (Math.random() - 0.5) * 100;
+	bgPositions[i3 + 1] = (Math.random() - 0.5) * 100;
+	bgPositions[i3 + 2] = (Math.random() - 0.5) * 100;
+
+	bgColors[i3] = 0.5 + Math.random() * 0.5;
+	bgColors[i3 + 1] = 0.6 + Math.random() * 0.4;
+	bgColors[i3 + 2] = 0.8 + Math.random() * 0.2;
+}
+
+const bgGeometry = new THREE.BufferGeometry();
+bgGeometry.setAttribute("position", new THREE.BufferAttribute(bgPositions, 3));
+bgGeometry.setAttribute("color", new THREE.BufferAttribute(bgColors, 3));
+
+const bgMaterial = new THREE.PointsMaterial({
+	size: 0.08,
+	sizeAttenuation: true,
+	depthWrite: false,
+	blending: THREE.AdditiveBlending,
+	vertexColors: true,
+});
+
+const bgStars = new THREE.Points(bgGeometry, bgMaterial);
+scene.add(bgStars);
+
+/**
  * Animate
  */
-// const clock = new THREE.Clock();
+const clock = new THREE.Clock();
 
 const tick = () => {
-	// const elapsedTime = clock.getElapsedTime();
+	const elapsedTime = clock.getElapsedTime();
+
+	// Вращение фонового космоса
+	bgStars.rotation.y = elapsedTime * 0.02;
+
+	// Вращение главной галактики
+	if (points) {
+		points.rotation.y = elapsedTime * 0.05;
+	}
 
 	// Update controls
 	controls.update();
