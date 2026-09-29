@@ -354,26 +354,23 @@ renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 /**
- * AUDIO SETUP (Lord Huron - The Night We Met)
+ * AUDIO SETUP (Standard HTML5 Audio Element - 100% Reliable)
  */
-const listener = new THREE.AudioListener();
-camera.add(listener);
-
-const backgroundSound = new THREE.Audio(listener);
-const audioLoader = new THREE.AudioLoader();
-
-audioLoader.load('/the-night-we-met.mp3', (buffer) => {
-	backgroundSound.setBuffer(buffer);
-	backgroundSound.setLoop(true);
-	backgroundSound.setVolume(0.35);
-});
+const audioElement = document.getElementById('bg-audio') as HTMLAudioElement;
+if (audioElement) {
+    audioElement.volume = 0.35;
+}
 
 const startAudio = () => {
-	if (!backgroundSound.isPlaying && backgroundSound.buffer) {
-		backgroundSound.play();
-	}
-	window.removeEventListener('click', startAudio);
-	window.removeEventListener('touchstart', startAudio);
+    if (audioElement) {
+        audioElement.play().then(() => {
+            console.log("Музыка успешно заиграла!");
+        }).catch((err) => {
+            console.log("Браузер ожидает взаимодействия:", err);
+        });
+    }
+    window.removeEventListener('click', startAudio);
+    window.removeEventListener('touchstart', startAudio);
 };
 
 window.addEventListener('click', startAudio);
