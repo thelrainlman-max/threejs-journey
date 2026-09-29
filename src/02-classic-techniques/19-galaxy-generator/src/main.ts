@@ -8,6 +8,7 @@ import "./style.css";
  * Base Setup
  */
 const gui = new dat.GUI({ width: 320 });
+gui.hide(); // Это полностью уберет панель с экрана при загрузке
 const canvas: HTMLElement = document.querySelector("canvas.webgl")!;
 const scene = new THREE.Scene();
 
