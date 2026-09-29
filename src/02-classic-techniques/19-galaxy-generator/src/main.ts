@@ -197,5 +197,28 @@ const tick = () => {
 	// Call tick again on the next frame
 	window.requestAnimationFrame(tick);
 };
+/**
+ * Audio Setup
+ */
+// 1. Создаем слушатель и добавляем его к камере
+const listener = new THREE.AudioListener();
+camera.add(listener);
 
+// 2. Создаем источник фонового звука
+const sound = new THREE.Audio(listener);
+
+// 3. Загружаем аудиофайл
+const audioLoader = new THREE.AudioLoader();
+audioLoader.load('/space-ambient.mp3', (buffer) => {
+	sound.setBuffer(buffer);
+	sound.setLoop(true);        // Бесконечный повтор
+	sound.setVolume(0.4);       // Громкость (0.0 - 1.0)
+});
+
+// 4. Запуск музыки по клику (требование современных браузеров)
+window.addEventListener('click', () => {
+	if (!sound.isPlaying) {
+		sound.play();
+	}
+}, { once: true });
 tick();
