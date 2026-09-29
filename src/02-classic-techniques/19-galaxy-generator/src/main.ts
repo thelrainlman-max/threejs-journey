@@ -8,7 +8,7 @@ import "./style.css";
  * Base
  */
 // Debug
-const gui = new dat.GUI({ width: 400 });
+const gui = new dat.GUI({ width: 340 });
 
 // Canvas
 const canvas: HTMLElement = document.querySelector("canvas.webgl")!;
@@ -16,16 +16,43 @@ const canvas: HTMLElement = document.querySelector("canvas.webgl")!;
 // Scene
 const scene = new THREE.Scene();
 
+/**
+ * Create Canvas Texture for Soft Round Stars
+ */
+const createParticleTexture = () => {
+	const canvas = document.createElement('canvas');
+	canvas.width = 32;
+	canvas.height = 32;
+	const ctx = canvas.getContext('2d')!;
+
+	const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+	gradient.addColorStop(0, 'rgba(255,255,255,1)');
+	gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+	gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+	gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+	ctx.fillStyle = gradient;
+	ctx.fillRect(0, 0, 32, 32);
+
+	const texture = new THREE.CanvasTexture(canvas);
+	return texture;
+};
+
+const particleTexture = createParticleTexture();
+
+/**
+ * Galaxy Parameters (Кинематографичные настройки)
+ */
 const params = {
-	count: 700000,
-	size: 0.01,
-	radius: 6,
-	branches: 3,
-	spin: 2,
-	randomness: 0.2,
-	randomnessPower: 3,
-	inColor: "#ff6030",
-	outColor: "#1b3984",
+	count: 200000,
+	size: 0.025,
+	radius: 5,
+	branches: 2,           // 2 рукава выглядят намного естественнее
+	spin: 1.2,             // Мягкое закручивание
+	randomness: 0.8,       // Хаотичный объём
+	randomnessPower: 3.5,  // Плотная концентрация к центру
+	inColor: "#ff9055",    // Тёплое янтарное ядро
+	outColor: "#3262ff",   // Глубокий неоново-голубой край
 };
 
 let geometry: THREE.BufferGeometry | null = null;
@@ -33,18 +60,12 @@ let material: THREE.PointsMaterial | null = null;
 let points: THREE.Points | null = null;
 
 const generateGalaxy = () => {
-	/**
-	 * Destroy old galaxy
-	 */
 	if (points !== null) {
 		geometry?.dispose();
 		material?.dispose();
 		scene.remove(points);
 	}
 
-	/**
-	 * Galaxy
-	 */
 	geometry = new THREE.BufferGeometry();
 	const positions = new Float32Array(params.count * 3);
 	const colors = new Float32Array(params.count * 3);
@@ -55,33 +76,32 @@ const generateGalaxy = () => {
 	for (let i = 0; i < params.count; i++) {
 		const i3 = i * 3;
 
-		/**
-		 * Position
-		 */
-		const radius = Math.random() * params.radius;
+		// Position
+		const radius = Math.pow(Math.random(), 2) * params.radius;
 		const spinAngle = radius * params.spin;
 		const branchAngle = ((i % params.branches) / params.branches) * Math.PI * 2;
 
 		const randomX =
 			Math.pow(Math.random(), params.randomnessPower) *
 			(Math.random() < 0.5 ? 1 : -1) *
-			params.randomness;
+			params.randomness *
+			radius;
 		const randomY =
 			Math.pow(Math.random(), params.randomnessPower) *
 			(Math.random() < 0.5 ? 1 : -1) *
-			params.randomness;
+			params.randomness *
+			radius;
 		const randomZ =
 			Math.pow(Math.random(), params.randomnessPower) *
 			(Math.random() < 0.5 ? 1 : -1) *
-			params.randomness;
+			params.randomness *
+			radius;
 
 		positions[i3 + 0] = Math.cos(branchAngle + spinAngle) * radius + randomX;
-		positions[i3 + 1] = randomY;
+		positions[i3 + 1] = randomY * 0.5; // Сплюснутый по вертикали диск
 		positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
 
-		/**
-		 * Color
-		 */
+		// Color
 		const mixedColor = inColor.clone();
 		mixedColor.lerp(outColor, radius / params.radius);
 
@@ -93,20 +113,16 @@ const generateGalaxy = () => {
 	geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 	geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
-	/**
-	 * Material
-	 */
 	material = new THREE.PointsMaterial({
 		size: params.size,
 		sizeAttenuation: true,
 		depthWrite: false,
+		transparent: true,
+		alphaMap: particleTexture,
 		blending: THREE.AdditiveBlending,
 		vertexColors: true,
 	});
 
-	/**
-	 * Points
-	 */
 	points = new THREE.Points(geometry, material);
 	scene.add(points);
 };
@@ -116,13 +132,13 @@ generateGalaxy();
 /**
  * GUI Controls
  */
-gui.add(params, "count", 100, 1000000, 100).onFinishChange(generateGalaxy);
-gui.add(params, "size", 0.001, 0.1, 0.001).onFinishChange(generateGalaxy);
-gui.add(params, "radius", 0.01, 20, 0.01).onFinishChange(generateGalaxy);
-gui.add(params, "branches", 2, 20, 1).onFinishChange(generateGalaxy);
-gui.add(params, "spin", -5, 5, 0.001).onFinishChange(generateGalaxy);
-gui.add(params, "randomness", 0, 2, 0.001).onFinishChange(generateGalaxy);
-gui.add(params, "randomnessPower", 1, 10, 0.001).onFinishChange(generateGalaxy);
+gui.add(params, "count", 1000, 500000, 1000).onFinishChange(generateGalaxy);
+gui.add(params, "size", 0.005, 0.08, 0.001).onFinishChange(generateGalaxy);
+gui.add(params, "radius", 1, 15, 0.1).onFinishChange(generateGalaxy);
+gui.add(params, "branches", 2, 8, 1).onFinishChange(generateGalaxy);
+gui.add(params, "spin", -3, 3, 0.01).onFinishChange(generateGalaxy);
+gui.add(params, "randomness", 0, 2, 0.01).onFinishChange(generateGalaxy);
+gui.add(params, "randomnessPower", 1, 10, 0.01).onFinishChange(generateGalaxy);
 gui.addColor(params, "inColor").onFinishChange(generateGalaxy);
 gui.addColor(params, "outColor").onFinishChange(generateGalaxy);
 
@@ -149,14 +165,12 @@ window.addEventListener("resize", () => {
  * Camera
  */
 const camera = new THREE.PerspectiveCamera(
-	75,
+	60,
 	sizes.width / sizes.height,
 	0.1,
 	100
 );
-camera.position.x = 3;
-camera.position.y = 3;
-camera.position.z = 3;
+camera.position.set(2, 4, 6);
 scene.add(camera);
 
 // Controls
@@ -168,25 +182,26 @@ controls.enableDamping = true;
  */
 const renderer = new THREE.WebGLRenderer({
 	canvas: canvas,
+	antialias: true
 });
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 /**
- * Background Space (Фоновый космос из 5000 звёзд)
+ * Background Space (Далекое мерцающее окружение)
  */
-const bgStarsCount = 5000;
+const bgStarsCount = 6000;
 const bgPositions = new Float32Array(bgStarsCount * 3);
 const bgColors = new Float32Array(bgStarsCount * 3);
 
 for (let i = 0; i < bgStarsCount; i++) {
 	const i3 = i * 3;
-	bgPositions[i3] = (Math.random() - 0.5) * 100;
-	bgPositions[i3 + 1] = (Math.random() - 0.5) * 100;
-	bgPositions[i3 + 2] = (Math.random() - 0.5) * 100;
+	bgPositions[i3] = (Math.random() - 0.5) * 150;
+	bgPositions[i3 + 1] = (Math.random() - 0.5) * 150;
+	bgPositions[i3 + 2] = (Math.random() - 0.5) * 150;
 
-	bgColors[i3] = 0.5 + Math.random() * 0.5;
-	bgColors[i3 + 1] = 0.6 + Math.random() * 0.4;
+	bgColors[i3] = 0.4 + Math.random() * 0.6;
+	bgColors[i3 + 1] = 0.5 + Math.random() * 0.5;
 	bgColors[i3 + 2] = 0.8 + Math.random() * 0.2;
 }
 
@@ -195,9 +210,11 @@ bgGeometry.setAttribute("position", new THREE.BufferAttribute(bgPositions, 3));
 bgGeometry.setAttribute("color", new THREE.BufferAttribute(bgColors, 3));
 
 const bgMaterial = new THREE.PointsMaterial({
-	size: 0.08,
+	size: 0.06,
 	sizeAttenuation: true,
 	depthWrite: false,
+	transparent: true,
+	alphaMap: particleTexture,
 	blending: THREE.AdditiveBlending,
 	vertexColors: true,
 });
@@ -213,21 +230,15 @@ const clock = new THREE.Clock();
 const tick = () => {
 	const elapsedTime = clock.getElapsedTime();
 
-	// Вращение фонового космоса
-	bgStars.rotation.y = elapsedTime * 0.02;
+	// Медленное закручивание
+	bgStars.rotation.y = elapsedTime * 0.01;
 
-	// Вращение главной галактики
 	if (points) {
 		points.rotation.y = elapsedTime * 0.05;
 	}
 
-	// Update controls
 	controls.update();
-
-	// Render
 	renderer.render(scene, camera);
-
-	// Call tick again on the next frame
 	window.requestAnimationFrame(tick);
 };
 
