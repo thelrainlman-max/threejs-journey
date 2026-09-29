@@ -1,14 +1,11 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import * as dat from "dat.gui";
 
 import "./style.css";
 
 /**
  * Base Setup
  */
-const gui = new dat.GUI({ width: 320 });
-gui.hide(); // Это полностью уберет панель с экрана при загрузке
 const canvas: HTMLElement = document.querySelector("canvas.webgl")!;
 const scene = new THREE.Scene();
 
@@ -309,18 +306,6 @@ createDistantVariedGalaxy(-40, -38, 45, 10, 6, 10, 1.1, -0.4, 0.6, "#e0f7fa", "#
 scene.add(distantGalaxiesGroup);
 
 /**
- * GUI Controls
- */
-gui.add(params, "count", 100000, 700000, 10000).onFinishChange(generateMainGalaxy);
-gui.add(params, "size", 0.005, 0.04, 0.001).onFinishChange(generateMainGalaxy);
-gui.add(params, "radius", 3, 16, 0.1).onFinishChange(generateMainGalaxy);
-gui.add(params, "branches", 2, 6, 1).onFinishChange(generateMainGalaxy);
-gui.add(params, "spin", -3, 3, 0.01).onFinishChange(generateMainGalaxy);
-gui.add(params, "randomness", 0, 2, 0.01).onFinishChange(generateMainGalaxy);
-gui.addColor(params, "inColor").onFinishChange(generateMainGalaxy);
-gui.addColor(params, "outColor").onFinishChange(generateMainGalaxy);
-
-/**
  * Sizes & Camera
  */
 const sizes = {
@@ -355,7 +340,7 @@ renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 /**
- * AUDIO SETUP (Standard HTML5 Audio Element - 100% Reliable)
+ * AUDIO SETUP
  */
 const audioElement = document.getElementById('bg-audio') as HTMLAudioElement;
 if (audioElement) {
