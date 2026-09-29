@@ -165,7 +165,7 @@ const generateMainGalaxy = () => {
 	mainGalaxy = new THREE.Points(mainGeometry, mainMaterial);
 	scene.add(mainGalaxy);
 
-	// Фотонное кольцо яндра
+	// Фотонное кольцо
 	const ringCount = 30000;
 	const ringGeo = new THREE.BufferGeometry();
 	const ringPos = new Float32Array(ringCount * 3);
@@ -301,7 +301,6 @@ const createDistantVariedGalaxy = (
 	distantGalaxiesGroup.add(mesh);
 };
 
-// Расставляем 3 галактики разных форм по углам сцены
 createDistantVariedGalaxy(-48, 25, -55, 12, 12, 12, 0.8, 0.3, -0.4, "#e1bee7", "#4a148c", 'ring');
 createDistantVariedGalaxy(52, -30, -60, 16, 3, 5, -0.5, 0.7, 0.3, "#bbdefb", "#0d47a1", 'spiral_extended');
 createDistantVariedGalaxy(-40, -38, 45, 10, 6, 10, 1.1, -0.4, 0.6, "#e0f7fa", "#006064", 'elliptical');
