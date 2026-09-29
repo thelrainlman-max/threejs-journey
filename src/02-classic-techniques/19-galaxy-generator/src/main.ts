@@ -7,46 +7,49 @@ import "./style.css";
 /**
  * Base Setup
  */
-const gui = new dat.GUI({ width: 340 });
+const gui = new dat.GUI({ width: 320 });
 const canvas: HTMLElement = document.querySelector("canvas.webgl")!;
 const scene = new THREE.Scene();
 
+// Мягкий космический туман для глубины
+scene.fog = new THREE.FogExp2("#030308", 0.005);
+
 /**
- * Canvas Texture generator for round glow stars
+ * Canvas Texture Generator for Soft Stars & Gas
  */
-const createParticleTexture = () => {
+const createGlowTexture = () => {
 	const canvas = document.createElement('canvas');
-	canvas.width = 32;
-	canvas.height = 32;
+	canvas.width = 64;
+	canvas.height = 64;
 	const ctx = canvas.getContext('2d')!;
 
-	const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-	gradient.addColorStop(0, 'rgba(255,255,255,1)');
-	gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
-	gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
-	gradient.addColorStop(1, 'rgba(0,0,0,0)');
+	const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+	gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+	gradient.addColorStop(0.1, 'rgba(255, 240, 200, 0.8)');
+	gradient.addColorStop(0.35, 'rgba(255, 180, 80, 0.15)');
+	gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
 	ctx.fillStyle = gradient;
-	ctx.fillRect(0, 0, 32, 32);
+	ctx.fillRect(0, 0, 64, 64);
 
 	return new THREE.CanvasTexture(canvas);
 };
 
-const particleTexture = createParticleTexture();
+const glowTexture = createGlowTexture();
 
 /**
- * Main Golden Galaxy Parameters
+ * Main Golden Galaxy: "ЭЛИС"
  */
 const params = {
-	count: 350000,
-	size: 0.022,
-	radius: 6,
+	count: 250000,
+	size: 0.02,
+	radius: 7,
 	branches: 2,
-	spin: 1.1,
-	randomness: 0.75,
-	randomnessPower: 3.2,
-	inColor: "#fff0a0",  // Светлое искрящееся золото в центре
-	outColor: "#ff9d00", // Глубокий золотисто-янтарный цвет на краях
+	spin: 0.9,
+	randomness: 0.65,
+	randomnessPower: 4.0,
+	inColor: "#fff2b3",  // Мягкое золотисто-кремовое ядро
+	outColor: "#c26d00", // Тёплый глубокий янтарный край
 };
 
 let mainGeometry: THREE.BufferGeometry | null = null;
@@ -70,36 +73,41 @@ const generateMainGalaxy = () => {
 	for (let i = 0; i < params.count; i++) {
 		const i3 = i * 3;
 
-		const radius = Math.pow(Math.random(), 2) * params.radius;
+		// Распределение по радиусу (сгущение к центру)
+		const radius = Math.pow(Math.random(), 2.5) * params.radius;
 		const spinAngle = radius * params.spin;
 		const branchAngle = ((i % params.branches) / params.branches) * Math.PI * 2;
 
+		// Объемный разброс
 		const randomX =
 			Math.pow(Math.random(), params.randomnessPower) *
 			(Math.random() < 0.5 ? 1 : -1) *
 			params.randomness *
-			(radius + 0.2);
+			(radius + 0.5);
 		const randomY =
 			Math.pow(Math.random(), params.randomnessPower) *
 			(Math.random() < 0.5 ? 1 : -1) *
 			params.randomness *
-			(radius + 0.2);
+			(radius * 0.3 + 0.2); // Пышное ядро, плоский диск
 		const randomZ =
 			Math.pow(Math.random(), params.randomnessPower) *
 			(Math.random() < 0.5 ? 1 : -1) *
 			params.randomness *
-			(radius + 0.2);
+			(radius + 0.5);
 
 		positions[i3 + 0] = Math.cos(branchAngle + spinAngle) * radius + randomX;
-		positions[i3 + 1] = randomY * 0.4;
+		positions[i3 + 1] = randomY;
 		positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
 
+		// Плавный градиент цвета
 		const mixedColor = inColor.clone();
 		mixedColor.lerp(outColor, radius / params.radius);
 
-		colors[i3 + 0] = mixedColor.r;
-		colors[i3 + 1] = mixedColor.g;
-		colors[i3 + 2] = mixedColor.b;
+		// Небольшой случайный оттенок для реализма отдельных звезд
+		const brightness = 0.8 + Math.random() * 0.4;
+		colors[i3 + 0] = mixedColor.r * brightness;
+		colors[i3 + 1] = mixedColor.g * brightness;
+		colors[i3 + 2] = mixedColor.b * brightness;
 	}
 
 	mainGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -110,9 +118,10 @@ const generateMainGalaxy = () => {
 		sizeAttenuation: true,
 		depthWrite: false,
 		transparent: true,
-		alphaMap: particleTexture,
+		alphaMap: glowTexture,
 		blending: THREE.AdditiveBlending,
 		vertexColors: true,
+		opacity: 0.85
 	});
 
 	mainGalaxy = new THREE.Points(mainGeometry, mainMaterial);
@@ -122,85 +131,128 @@ const generateMainGalaxy = () => {
 generateMainGalaxy();
 
 /**
- * Distant Gray/White Background Galaxies (Очень далекие и тусклые)
+ * Distant Deep Space Galaxies (Реалистичный далекий космос)
  */
-const distantGalaxiesGroup = new THREE.Group();
+const distantUniverseGroup = new THREE.Group();
 
 const createDistantGalaxy = (
 	x: number, y: number, z: number,
 	scale: number,
-	count = 15000
+	rotX: number, rotY: number, rotZ: number,
+	isElliptical = false
 ) => {
+	const count = isElliptical ? 8000 : 15000;
 	const geo = new THREE.BufferGeometry();
 	const pos = new Float32Array(count * 3);
 	const col = new Float32Array(count * 3);
 
-	const c1 = new THREE.Color("#ffffff");
-	const c2 = new THREE.Color("#666666");
+	const baseColor = new THREE.Color(0.65, 0.7, 0.8); // Серо-голубоватый туманный тон
 
 	for (let i = 0; i < count; i++) {
 		const i3 = i * 3;
-		const r = Math.pow(Math.random(), 2) * scale;
-		const angle = r * 1.8 + ((i % 2) * Math.PI);
+		const r = Math.pow(Math.random(), isElliptical ? 1.5 : 2) * scale;
 
-		const rx = (Math.random() - 0.5) * r * 0.4;
-		const ry = (Math.random() - 0.5) * r * 0.2;
-		const rz = (Math.random() - 0.5) * r * 0.4;
+		let px = 0, py = 0, pz = 0;
 
-		pos[i3] = Math.cos(angle) * r + rx;
-		pos[i3 + 1] = ry;
-		pos[i3 + 2] = Math.sin(angle) * r + rz;
+		if (isElliptical) {
+			// Эллиптическая туманная галактика-облако
+			const u = Math.random();
+			const v = Math.random();
+			const theta = u * 2.0 * Math.PI;
+			const phi = Math.acos(2.0 * v - 1.0);
+			const rSph = Math.cbrt(Math.random()) * scale;
 
-		const mixed = c1.clone().lerp(c2, r / scale);
-		col[i3] = mixed.r * 0.4; // Делаем тусклыми
-		col[i3 + 1] = mixed.g * 0.4;
-		col[i3 + 2] = mixed.b * 0.4;
+			px = rSph * Math.sin(phi) * Math.cos(theta);
+			py = rSph * Math.sin(phi) * Math.sin(theta) * 0.5;
+			pz = rSph * Math.cos(phi);
+		} else {
+			// Спиральная далекая галактика
+			const angle = r * 1.5 + ((i % 2) * Math.PI);
+			px = Math.cos(angle) * r + (Math.random() - 0.5) * r * 0.3;
+			py = (Math.random() - 0.5) * r * 0.15;
+			pz = Math.sin(angle) * r + (Math.random() - 0.5) * r * 0.3;
+		}
+
+		pos[i3] = px;
+		pos[i3 + 1] = py;
+		pos[i3 + 2] = pz;
+
+		const factor = 0.2 + (1 - r / scale) * 0.5;
+		col[i3] = baseColor.r * factor;
+		col[i3 + 1] = baseColor.g * factor;
+		col[i3 + 2] = baseColor.b * factor;
 	}
 
 	geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
 	geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
 
 	const mat = new THREE.PointsMaterial({
-		size: 0.04,
+		size: 0.08,
 		sizeAttenuation: true,
 		depthWrite: false,
 		transparent: true,
-		alphaMap: particleTexture,
+		alphaMap: glowTexture,
 		blending: THREE.AdditiveBlending,
 		vertexColors: true,
+		opacity: 0.35 // Полупрозрачные, не перебивают главный кадр
 	});
 
 	const mesh = new THREE.Points(geo, mat);
 	mesh.position.set(x, y, z);
-	mesh.rotation.x = Math.random() * Math.PI;
-	mesh.rotation.z = Math.random() * Math.PI;
+	mesh.rotation.set(rotX, rotY, rotZ);
 
-	distantGalaxiesGroup.add(mesh);
+	distantUniverseGroup.add(mesh);
 };
 
-// 3 тусклые беловато-серые галактики очень далеко на заднем плане
-createDistantGalaxy(-60, 25, -70, 5);
-createDistantGalaxy(70, -30, -90, 6);
-createDistantGalaxy(-50, -40, -60, 4);
+// Генерация 8 далеких галактик, раскиданных в 3D по сферической орбите
+const galaxyCount = 8;
+for (let i = 0; i < galaxyCount; i++) {
+	const distance = 80 + Math.random() * 120; // Очень далеко
+	const theta = Math.random() * Math.PI * 2;
+	const phi = Math.acos((Math.random() * 2) - 1);
 
-scene.add(distantGalaxiesGroup);
+	const x = distance * Math.sin(phi) * Math.cos(theta);
+	const y = distance * Math.sin(phi) * Math.sin(theta);
+	const z = distance * Math.cos(phi);
+
+	const scale = 3 + Math.random() * 5;
+	const isElliptical = Math.random() > 0.5;
+
+	createDistantGalaxy(
+		x, y, z,
+		scale,
+		Math.random() * Math.PI,
+		Math.random() * Math.PI,
+		Math.random() * Math.PI,
+		isElliptical
+	);
+}
+
+scene.add(distantUniverseGroup);
 
 /**
- * Background Starfield (Далекие нейтральные белые звезды)
+ * Spherical Deep Starfield (Сферическое звёздное небо)
  */
-const bgStarsCount = 12000;
+const bgStarsCount = 20000;
 const bgPositions = new Float32Array(bgStarsCount * 3);
 const bgColors = new Float32Array(bgStarsCount * 3);
 
 for (let i = 0; i < bgStarsCount; i++) {
 	const i3 = i * 3;
-	bgPositions[i3] = (Math.random() - 0.5) * 200;
-	bgPositions[i3 + 1] = (Math.random() - 0.5) * 200;
-	bgPositions[i3 + 2] = (Math.random() - 0.5) * 200;
+	// Распределение по сфере, а не по кубу
+	const radius = 100 + Math.random() * 150;
+	const u = Math.random();
+	const v = Math.random();
+	const theta = u * 2.0 * Math.PI;
+	const phi = Math.acos(2.0 * v - 1.0);
 
-	const val = 0.2 + Math.random() * 0.5;
-	bgColors[i3] = val;
-	bgColors[i3 + 1] = val;
+	bgPositions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+	bgPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+	bgPositions[i3 + 2] = radius * Math.cos(phi);
+
+	const val = 0.2 + Math.random() * 0.6;
+	bgColors[i3] = val * 0.8;
+	bgColors[i3 + 1] = val * 0.85;
 	bgColors[i3 + 2] = val;
 }
 
@@ -209,13 +261,14 @@ bgGeometry.setAttribute("position", new THREE.BufferAttribute(bgPositions, 3));
 bgGeometry.setAttribute("color", new THREE.BufferAttribute(bgColors, 3));
 
 const bgMaterial = new THREE.PointsMaterial({
-	size: 0.05,
+	size: 0.06,
 	sizeAttenuation: true,
 	depthWrite: false,
 	transparent: true,
-	alphaMap: particleTexture,
+	alphaMap: glowTexture,
 	blending: THREE.AdditiveBlending,
 	vertexColors: true,
+	opacity: 0.6
 });
 
 const bgStars = new THREE.Points(bgGeometry, bgMaterial);
@@ -225,12 +278,11 @@ scene.add(bgStars);
  * GUI Controls
  */
 gui.add(params, "count", 10000, 500000, 10000).onFinishChange(generateMainGalaxy);
-gui.add(params, "size", 0.005, 0.06, 0.001).onFinishChange(generateMainGalaxy);
-gui.add(params, "radius", 2, 15, 0.1).onFinishChange(generateMainGalaxy);
-gui.add(params, "branches", 2, 8, 1).onFinishChange(generateMainGalaxy);
+gui.add(params, "size", 0.005, 0.05, 0.001).onFinishChange(generateMainGalaxy);
+gui.add(params, "radius", 2, 12, 0.1).onFinishChange(generateMainGalaxy);
+gui.add(params, "branches", 2, 6, 1).onFinishChange(generateMainGalaxy);
 gui.add(params, "spin", -3, 3, 0.01).onFinishChange(generateMainGalaxy);
 gui.add(params, "randomness", 0, 2, 0.01).onFinishChange(generateMainGalaxy);
-gui.add(params, "randomnessPower", 1, 10, 0.01).onFinishChange(generateMainGalaxy);
 gui.addColor(params, "inColor").onFinishChange(generateMainGalaxy);
 gui.addColor(params, "outColor").onFinishChange(generateMainGalaxy);
 
@@ -253,12 +305,14 @@ window.addEventListener("resize", () => {
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
-const camera = new THREE.PerspectiveCamera(55, sizes.width / sizes.height, 0.1, 300);
-camera.position.set(2.5, 4, 6.5);
+// Камера под эстетичным кинематографичным углом
+const camera = new THREE.PerspectiveCamera(50, sizes.width / sizes.height, 0.1, 400);
+camera.position.set(3.5, 3, 8);
 scene.add(camera);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
+controls.dampingFactor = 0.05;
 
 const renderer = new THREE.WebGLRenderer({
 	canvas: canvas,
@@ -275,11 +329,13 @@ const clock = new THREE.Clock();
 const tick = () => {
 	const elapsedTime = clock.getElapsedTime();
 
-	bgStars.rotation.y = elapsedTime * 0.003;
-	distantGalaxiesGroup.rotation.y = elapsedTime * 0.005;
+	// Очень медленное, естественное вращение фона
+	bgStars.rotation.y = elapsedTime * 0.0015;
+	distantUniverseGroup.rotation.y = elapsedTime * 0.003;
 
+	// Медленное закручивание главной галактики
 	if (mainGalaxy) {
-		mainGalaxy.rotation.y = elapsedTime * 0.03;
+		mainGalaxy.rotation.y = elapsedTime * 0.025;
 	}
 
 	controls.update();
